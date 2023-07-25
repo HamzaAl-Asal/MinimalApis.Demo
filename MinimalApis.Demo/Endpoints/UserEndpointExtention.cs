@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Mvc;
+using MinimalApis.Demo.Interfaces;
 using MinimalApis.Demo.Models.Users;
-using MinimalApis.Demo.Options;
 
 namespace MinimalApis.Demo.Endpoints
 {
@@ -16,79 +16,26 @@ namespace MinimalApis.Demo.Endpoints
             app.MapGet("api/user/{id}", HandleGetUserAsync)
                 .WithSummary("Get user by Id")
                 .WithTags("User Apis");
+
+            app.MapPost("api/add-user", HandleCreateUserAsync)
+               .WithSummary("Create User")
+               .WithTags("User Apis");
         }
 
-        private static async Task<Ok<IEnumerable<UserViewModel>>> HandleGetUsersAsync(IMemoryCache cache,
-            ILogger<UserViewModel> logger,
-            IConfiguration configuration,
-            CancellationToken cancellationToken)
+        private static async Task<Ok<IEnumerable<UserViewModel>>> HandleGetUsersAsync(IUserService userService)
         {
-            if (cache.TryGetValue(Constant.GetUsersCacheKey, out IEnumerable<UserViewModel> users))
-            {
-                logger.LogInformation("Found Users List in cache");
-            }
-            else
-            {
-                users = GetUsersSeedData();
-
-                var options = new CacheOptions();
-                configuration.GetSection(Constant.CacheOptionsKey)
-                    .Bind(options);
-
-                cache.Set(Constant.GetUsersCacheKey, users,
-                    new MemoryCacheEntryOptions()
-                    {
-                        Size = options.Size,
-                        AbsoluteExpiration = DateTime.Now.AddMinutes(options.ExpirationInMinutes)
-                    });
-            };
-
-            return TypedResults.Ok(users);
+            return await userService.GetUsersAsync();
         }
 
         private static async Task<Ok<UserViewModel>> HandleGetUserAsync(int id,
-            CancellationToken cancellationToken)
+            IUserService userService)
         {
-            var user = GetUsersSeedData()
-                .FirstOrDefault(p => p.Id == id);
-
-            if (user is null)
-            {
-                return TypedResults.Ok(new UserViewModel());
-            }
-
-            return TypedResults.Ok(user);
+            return await userService.GetUserAsync(id);
         }
 
-        private static IEnumerable<UserViewModel> GetUsersSeedData()
+        private static async Task<Ok> HandleCreateUserAsync([FromBody] UserViewModel user, IUserService userService)
         {
-            return new List<UserViewModel>()
-            {
-                new UserViewModel {
-                    Id = 1,
-                    Name = "Test",
-                    Age = 25,
-                    Job = "Fresh Software Developer"
-                },
-                new UserViewModel {
-                    Id = 2,
-                    Name = "Test2",
-                    Age = 26,
-                    Job = "Junior Software Developer"
-                },
-                new UserViewModel {
-                    Id = 3,
-                    Name = "Test3",
-                    Age = 27,
-                    Job = "Mid-Level Software Developer"
-                },
-                new UserViewModel {
-                    Id = 4,
-                    Name = "Test4",
-                    Age = 28,
-                    Job = "Senior Software Developer"
-                }
-            };
+            return await userService.CreateUserAsync(user);
         }
     }
 }

@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.Extensions.Caching.Memory;
+using Microsoft.AspNetCore.Mvc;
+using MinimalApis.Demo.Interfaces;
 using MinimalApis.Demo.Models.Movies;
-using MinimalApis.Demo.Options;
 
 namespace MinimalApis.Demo.Endpoints
 {
@@ -12,64 +12,29 @@ namespace MinimalApis.Demo.Endpoints
             app.MapGet("api/movies", HandleGetMoviesAsync)
                 .WithSummary("Get all movies")
                 .WithTags("Movie Apis");
+
+            app.MapGet("api/movie/{id}", HandleGetMovieAsync)
+                .WithSummary("Get movie")
+                .WithTags("Movie Apis");
+
+            app.MapPost("api/add-movie", HandleCreateMovieAsync)
+                .WithSummary("Create movie")
+                .WithTags("Movie Apis");
         }
 
-        private static async Task<Ok<IEnumerable<MovieViewModel>>> HandleGetMoviesAsync(IMemoryCache cache,
-            ILogger<MovieViewModel> logger,
-            IConfiguration configuration,
-            CancellationToken cancellationToken)
+        private static async Task<Ok<IEnumerable<MovieViewModel>>> HandleGetMoviesAsync(IMovieService movieService)
         {
-            if (cache.TryGetValue(Constant.GetMoviesCacheKey, out IEnumerable<MovieViewModel> movies))
-            {
-                logger.LogInformation("Found Movies List in cache");
-            }
-            else
-            {
-                var options = new CacheOptions();
-                configuration.GetSection(Constant.CacheOptionsKey).Bind(options);
-
-                movies = GetMoviesSeedData();
-
-                cache.Set(Constant.GetMoviesCacheKey, movies,
-                    new MemoryCacheEntryOptions()
-                    {
-                        Size = options.Size,
-                        AbsoluteExpiration = DateTime.Now.AddMinutes(options.ExpirationInMinutes)
-                    });
-            };
-
-            return TypedResults.Ok(movies);
+            return await movieService.GetMoviesAsync();
         }
 
-        private static IEnumerable<MovieViewModel> GetMoviesSeedData()
+        private static async Task<Ok<MovieViewModel>> HandleGetMovieAsync(int id, IMovieService movieService)
         {
-            return new List<MovieViewModel>()
-            {
-                new MovieViewModel {
-                    Id = 1,
-                    Name = "Harry Potter",
-                    Description = "",
-                    Rate = 10
-                },
-                new MovieViewModel {
-                    Id = 2,
-                    Name = "12 Angry Men",
-                    Description = "",
-                    Rate = 9
-                },
-                new MovieViewModel {
-                    Id = 3,
-                    Name = "The Shawshank Redemption",
-                    Description = "The Shawshank Redemption Description",
-                    Rate = 8.5
-                },
-                new MovieViewModel {
-                    Id = 4,
-                    Name = "The GodFather",
-                    Description = "",
-                    Rate = 8
-                }
-            };
+            return await movieService.GetMovieAsync(id);
+        }
+
+        private static async Task<Ok> HandleCreateMovieAsync([FromBody] MovieViewModel movie, IMovieService movieService)
+        {
+            return await movieService.CreateMovieAsync(movie);
         }
     }
 }
